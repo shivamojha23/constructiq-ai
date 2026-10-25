@@ -1,0 +1,19 @@
+# ConstructIQ AI — backend dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+
+# Request parsing
+python-multipart==0.0.32
+
+# Data validation
+pydantic==2.14.1
+pydantic-settings==2.16.1
+
+# Environment variables
+python-dotenv==1.2.4
+
+# HTTP client — used to talk to Ollama
+httpx==0.28.1
