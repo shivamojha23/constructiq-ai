@@ -18,7 +18,7 @@ import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -328,28 +328,85 @@ class CrackAnalysisResponse(BaseModel):
 
 class MaterialItem(BaseModel):
     material: str = ""
-    quantity: Any = ""
+    quantity: str = ""
     unit: str = ""
-    estimated_cost_usd: float | int | str = 0
+    estimated_cost_usd: float = 0.0
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def sanitize_quantity(cls, v: Any) -> str:
+        return str(v) if v is not None else ""
+
+    @field_validator("estimated_cost_usd", mode="before")
+    @classmethod
+    def sanitize_cost(cls, v: Any) -> float:
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            clean = v.replace("$", "").replace(",", "").strip()
+            try:
+                return float(clean)
+            except ValueError:
+                return 0.0
+        return 0.0
 
 class PlanningResponse(BaseModel):
     project_type: str = ""
-    estimated_duration_weeks: int | float | str = 0
+    estimated_duration_weeks: int = 0
     phases: list[dict[str, Any]] = []
     materials: list[MaterialItem] = []
-    total_estimated_cost_usd: float | int | str = 0
+    total_estimated_cost_usd: float = 0.0
     key_risks: list[str] = []
     summary: str = ""
 
+    @field_validator("estimated_duration_weeks", mode="before")
+    @classmethod
+    def sanitize_duration(cls, v: Any) -> int:
+        if isinstance(v, (int, float)):
+            return int(v)
+        if isinstance(v, str):
+            clean = v.replace("weeks", "").replace("week", "").strip()
+            try:
+                return int(float(clean))
+            except ValueError:
+                return 0
+        return 0
+
+    @field_validator("total_estimated_cost_usd", mode="before")
+    @classmethod
+    def sanitize_total_cost(cls, v: Any) -> float:
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            clean = v.replace("$", "").replace(",", "").strip()
+            try:
+                return float(clean)
+            except ValueError:
+                return 0.0
+        return 0.0
+
 
 class ValuationResponse(BaseModel):
-    estimated_value_usd: float | int | str = 0
-    price_per_sqft_usd: float | int | str = 0
+    estimated_value_usd: float = 0.0
+    price_per_sqft_usd: float = 0.0
     market_trend: str = "stable"
     confidence_level: str = "medium"
     value_drivers: list[str] = []
     comparable_range_usd: dict[str, Any] = {}
     summary: str = ""
+
+    @field_validator("estimated_value_usd", "price_per_sqft_usd", mode="before")
+    @classmethod
+    def sanitize_prices(cls, v: Any) -> float:
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            clean = v.replace("$", "").replace(",", "").strip()
+            try:
+                return float(clean)
+            except ValueError:
+                return 0.0
+        return 0.0
 
 
 class WeatherAdvisoryResponse(BaseModel):
@@ -433,7 +490,7 @@ def list_features():
 
 # ── 1. Safety Monitoring ──────────────────────────────────────────────────────
 
-@app.post("/api/safety/analyze")
+@app.post("/api/safety/analyze", response_model=SafetyAnalysisResponse)
 async def analyze_safety(file: UploadFile = File(...), context: str = Form(default="")):
     data = await read_and_validate_image(file)
 
@@ -468,7 +525,7 @@ Return ONLY the JSON object, no other text."""
 
 # ── 2. Crack Detection ────────────────────────────────────────────────────────
 
-@app.post("/api/cracks/analyze")
+@app.post("/api/cracks/analyze", response_model=CrackAnalysisResponse)
 async def analyze_cracks(file: UploadFile = File(...), context: str = Form(default="")):
     data = await read_and_validate_image(file)
 
@@ -505,7 +562,7 @@ Return ONLY the JSON object."""
 
 # ── 3. Project Planner ────────────────────────────────────────────────────────
 
-@app.post("/api/planning/generate")
+@app.post("/api/planning/generate", response_model=PlanningResponse)
 async def generate_plan(
     project_type: str = Form(...), area_sqft: float = Form(...),
     location: str = Form(default=""), budget_usd: float = Form(default=0),
@@ -544,7 +601,7 @@ Return ONLY the JSON object."""
 
 # ── 4. Property Valuation ─────────────────────────────────────────────────────
 
-@app.post("/api/valuation/estimate")
+@app.post("/api/valuation/estimate", response_model=ValuationResponse)
 async def estimate_valuation(
     property_type: str = Form(...), area_sqft: float = Form(...),
     location: str = Form(...), bedrooms: int = Form(default=0),
@@ -578,7 +635,7 @@ Return ONLY the JSON object."""
 
 # ── 5. Weather Advisory ───────────────────────────────────────────────────────
 
-@app.post("/api/weather/advisory")
+@app.post("/api/weather/advisory", response_model=WeatherAdvisoryResponse)
 async def weather_advisory(
     location: str = Form(...), activities: str = Form(default="general construction"),
     date_range: str = Form(default="next 7 days"),
@@ -610,7 +667,7 @@ Return ONLY the JSON object."""
 
 # ── 6. Daily Site Reports ─────────────────────────────────────────────────────
 
-@app.post("/api/reports/generate")
+@app.post("/api/reports/generate", response_model=DailyReportResponse)
 async def generate_report(
     site_name: str = Form(...), date: str = Form(...),
     file: UploadFile = File(default=None),
@@ -659,7 +716,7 @@ Return ONLY the JSON object."""
 
 # ── 7. AI Construction Assistant ──────────────────────────────────────────────
 
-@app.post("/api/assistant/ask")
+@app.post("/api/assistant/ask", response_model=AssistantResponse)
 async def ask_assistant(question: str = Form(...), context: str = Form(default="")):
     system = """You are an expert AI construction assistant with deep knowledge in:
 - Construction engineering and structural design
