@@ -93,9 +93,16 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    origin = request.headers.get("origin") or "*"
     return JSONResponse(
         status_code=500,
-        content={"detail": "An internal server error occurred. Please try again later."},
+        content={"detail": str(exc) if settings.app_reload else "An internal server error occurred. Please try again later."},
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
     )
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -320,29 +327,29 @@ class CrackAnalysisResponse(BaseModel):
 
 
 class MaterialItem(BaseModel):
-    material: str
-    quantity: str
-    unit: str
-    estimated_cost_usd: float
+    material: str = ""
+    quantity: Any = ""
+    unit: str = ""
+    estimated_cost_usd: float | int | str = 0
 
 class PlanningResponse(BaseModel):
-    project_type: str
-    estimated_duration_weeks: int
-    phases: list[dict]
-    materials: list[MaterialItem]
-    total_estimated_cost_usd: float
-    key_risks: list[str]
-    summary: str
+    project_type: str = ""
+    estimated_duration_weeks: int | float | str = 0
+    phases: list[dict[str, Any]] = []
+    materials: list[MaterialItem] = []
+    total_estimated_cost_usd: float | int | str = 0
+    key_risks: list[str] = []
+    summary: str = ""
 
 
 class ValuationResponse(BaseModel):
-    estimated_value_usd: float
-    price_per_sqft_usd: float
-    market_trend: str
-    confidence_level: str
-    value_drivers: list[str]
-    comparable_range_usd: dict
-    summary: str
+    estimated_value_usd: float | int | str = 0
+    price_per_sqft_usd: float | int | str = 0
+    market_trend: str = "stable"
+    confidence_level: str = "medium"
+    value_drivers: list[str] = []
+    comparable_range_usd: dict[str, Any] = {}
+    summary: str = ""
 
 
 class WeatherAdvisoryResponse(BaseModel):
@@ -526,6 +533,12 @@ Return ONLY the JSON object."""
     result.setdefault("total_estimated_cost_usd", 0)
     result.setdefault("key_risks", [])
     result.setdefault("summary", "Plan generated.")
+
+    if isinstance(result.get("materials"), list):
+        for m in result["materials"]:
+            if isinstance(m, dict) and "quantity" in m:
+                m["quantity"] = str(m["quantity"])
+
     return result
 
 
