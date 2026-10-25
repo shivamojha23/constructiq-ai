@@ -433,7 +433,7 @@ def list_features():
 
 # ── 1. Safety Monitoring ──────────────────────────────────────────────────────
 
-@app.post("/api/safety/analyze", response_model=SafetyAnalysisResponse)
+@app.post("/api/safety/analyze")
 async def analyze_safety(file: UploadFile = File(...), context: str = Form(default="")):
     data = await read_and_validate_image(file)
 
@@ -468,7 +468,7 @@ Return ONLY the JSON object, no other text."""
 
 # ── 2. Crack Detection ────────────────────────────────────────────────────────
 
-@app.post("/api/cracks/analyze", response_model=CrackAnalysisResponse)
+@app.post("/api/cracks/analyze")
 async def analyze_cracks(file: UploadFile = File(...), context: str = Form(default="")):
     data = await read_and_validate_image(file)
 
@@ -505,7 +505,7 @@ Return ONLY the JSON object."""
 
 # ── 3. Project Planner ────────────────────────────────────────────────────────
 
-@app.post("/api/planning/generate", response_model=PlanningResponse)
+@app.post("/api/planning/generate")
 async def generate_plan(
     project_type: str = Form(...), area_sqft: float = Form(...),
     location: str = Form(default=""), budget_usd: float = Form(default=0),
@@ -544,7 +544,7 @@ Return ONLY the JSON object."""
 
 # ── 4. Property Valuation ─────────────────────────────────────────────────────
 
-@app.post("/api/valuation/estimate", response_model=ValuationResponse)
+@app.post("/api/valuation/estimate")
 async def estimate_valuation(
     property_type: str = Form(...), area_sqft: float = Form(...),
     location: str = Form(...), bedrooms: int = Form(default=0),
@@ -578,7 +578,7 @@ Return ONLY the JSON object."""
 
 # ── 5. Weather Advisory ───────────────────────────────────────────────────────
 
-@app.post("/api/weather/advisory", response_model=WeatherAdvisoryResponse)
+@app.post("/api/weather/advisory")
 async def weather_advisory(
     location: str = Form(...), activities: str = Form(default="general construction"),
     date_range: str = Form(default="next 7 days"),
@@ -610,7 +610,7 @@ Return ONLY the JSON object."""
 
 # ── 6. Daily Site Reports ─────────────────────────────────────────────────────
 
-@app.post("/api/reports/generate", response_model=DailyReportResponse)
+@app.post("/api/reports/generate")
 async def generate_report(
     site_name: str = Form(...), date: str = Form(...),
     file: UploadFile = File(default=None),
@@ -659,7 +659,7 @@ Return ONLY the JSON object."""
 
 # ── 7. AI Construction Assistant ──────────────────────────────────────────────
 
-@app.post("/api/assistant/ask", response_model=AssistantResponse)
+@app.post("/api/assistant/ask")
 async def ask_assistant(question: str = Form(...), context: str = Form(default="")):
     system = """You are an expert AI construction assistant with deep knowledge in:
 - Construction engineering and structural design
