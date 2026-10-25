@@ -142,13 +142,22 @@ async def _check_ollama() -> bool:
 
 def _extract_json(raw: str) -> dict[str, Any]:
     """Parse JSON from model output, with fallback extraction."""
+    clean = raw.strip()
+    if clean.startswith("```json"):
+        clean = clean[7:]
+    elif clean.startswith("```"):
+        clean = clean[3:]
+    if clean.endswith("```"):
+        clean = clean[:-3]
+    clean = clean.strip()
+
     try:
-        return json.loads(raw)
+        return json.loads(clean)
     except json.JSONDecodeError:
-        start, end = raw.find("{"), raw.rfind("}") + 1
+        start, end = clean.find("{"), clean.rfind("}") + 1
         if start != -1 and end > start:
             try:
-                return json.loads(raw[start:end])
+                return json.loads(clean[start:end])
             except json.JSONDecodeError:
                 pass
     logger.error("Cannot parse JSON from model output: %s", raw[:400])
@@ -164,7 +173,7 @@ async def _call_ollama(system: str, prompt: str,
         "prompt": f"{system}\n\n{prompt}",
         "stream": False,
         "format": "json",
-        "options": {"temperature": 0.2, "num_predict": 2048},
+        "options": {"temperature": 0.2, "num_predict": 8192},
     }
     if image_b64:
         payload["images"] = [image_b64]
@@ -213,7 +222,7 @@ async def _call_gemini(system: str, prompt: str,
         "contents": [{"parts": parts}],
         "generationConfig": {
             "temperature": 0.2,
-            "maxOutputTokens": 2048,
+            "maxOutputTokens": 8192,
             "responseMimeType": "application/json",
         },
     }
@@ -569,15 +578,16 @@ async def generate_plan(
     description: str = Form(default=""),
 ):
     system = """You are a senior construction project manager with 20 years of experience.
-Return ONLY a valid JSON object:
+Generate a concise construction plan with 4 key phases and 6-8 core materials.
+Return ONLY a valid, complete JSON object matching this schema:
 {
   "project_type": "project name",
   "estimated_duration_weeks": 12,
-  "phases": [{"phase": "name", "duration_weeks": 2, "activities": ["a1"], "dependencies": []}],
-  "materials": [{"material": "name", "quantity": 100, "unit": "bags", "estimated_cost_usd": 500}],
+  "phases": [{"phase": "name", "duration_weeks": 2, "activities": ["a1", "a2"], "dependencies": []}],
+  "materials": [{"material": "name", "quantity": "100", "unit": "bags", "estimated_cost_usd": 500}],
   "total_estimated_cost_usd": 150000,
-  "key_risks": ["risk 1"],
-  "summary": "overview"
+  "key_risks": ["risk 1", "risk 2"],
+  "summary": "overview summary"
 }
 Return ONLY the JSON object."""
 
